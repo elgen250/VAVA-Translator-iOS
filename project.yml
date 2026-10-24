@@ -1,0 +1,41 @@
+name: VAVATranslator
+options:
+  bundleIdPrefix: com.vava
+  deploymentTarget:
+    iOS: "18.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "18.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_PREVIEWS: YES
+    SWIFT_STRICT_CONCURRENCY: complete
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  VAVATranslator:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: App
+      - path: Models
+      - path: Services
+      - path: Extensions
+      - path: Views
+      - path: Preview Content
+    settings:
+      base:
+        PRODUCT_NAME: "VAVA Translator"
+        PRODUCT_BUNDLE_IDENTIFIER: com.vava.translator
+        INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: VAVATranslator.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_BITCODE: NO
+        SWIFT_COMPILATION_MODE: wholemodule

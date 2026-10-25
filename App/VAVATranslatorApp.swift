@@ -30,22 +30,24 @@ struct VAVATranslatorApp: App {
                 fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
             }
         }
-
-        // Seed initial starter phrases and history if empty
-        Task { @MainActor in
-            let context = container.mainContext
-            var fetchDescriptor = FetchDescriptor<PhraseItem>()
-            fetchDescriptor.fetchLimit = 1
-            if let count = try? context.fetchCount(fetchDescriptor), count == 0 {
-                SampleData.populate(context: context)
-            }
-        }
     }
 
     var body: some Scene {
         WindowGroup {
             MainTabView()
                 .modelContainer(container)
+                .task {
+                    seedInitialDataIfNeeded(context: container.mainContext)
+                }
+        }
+    }
+
+    @MainActor
+    private func seedInitialDataIfNeeded(context: ModelContext) {
+        var fetchDescriptor = FetchDescriptor<PhraseItem>()
+        fetchDescriptor.fetchLimit = 1
+        if let count = try? context.fetchCount(fetchDescriptor), count == 0 {
+            SampleData.populate(context: context)
         }
     }
 }

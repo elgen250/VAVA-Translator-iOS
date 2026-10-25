@@ -1,7 +1,7 @@
 import SwiftUI
 import Translation
 
-/// Settings and diagnostic sheet for the MVP version of VAVA Translator.
+/// Settings and diagnostic sheet for the production release of VAVA Translator.
 public struct SettingsSheetView: View {
     @Environment(\.dismiss) private var dismiss
 

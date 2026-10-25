@@ -151,7 +151,7 @@ public struct TalkConversationView: View {
         let isCurrentRecording = activeSpeaker == side && speechService.isRecording
 
         return Button {
-            handleMicTap(for: side, lang: lang, targetLang: targetLang)
+            handleMicTap(side: side, lang: lang, targetLang: targetLang)
         } label: {
             VStack(spacing: 8) {
                 ZStack {

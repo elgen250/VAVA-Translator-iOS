@@ -13,21 +13,34 @@ struct VAVATranslatorApp: App {
             LessonProgress.self
         ])
 
-        // First attempt App Group shared container for extension synchronization
-        do {
-            let config = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: false,
-                groupContainer: .identifier("group.com.vava.translator")
-            )
-            self.container = try ModelContainer(for: schema, configurations: [config])
-        } catch {
-            // Fallback to local default container if App Group is unavailable in testing/sim
+        // Safely check if App Group container is actually provisioned and accessible on this device
+        let appGroupIdentifier = "group.com.vava.translator"
+        let isAppGroupAccessible = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) != nil
+
+        if isAppGroupAccessible {
             do {
-                let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-                self.container = try ModelContainer(for: schema, configurations: [fallbackConfig])
+                let config = ModelConfiguration(
+                    schema: schema,
+                    isStoredInMemoryOnly: false,
+                    groupContainer: .identifier(appGroupIdentifier)
+                )
+                self.container = try ModelContainer(for: schema, configurations: [config])
+                return
             } catch {
-                fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
+                print("App Group container failed to load, falling back to local: \(error)")
+            }
+        }
+
+        // Standard local sandbox container (used during sideloading or free Apple ID signing)
+        do {
+            let localConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            self.container = try ModelContainer(for: schema, configurations: [localConfig])
+        } catch {
+            do {
+                let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                self.container = try ModelContainer(for: schema, configurations: [memoryConfig])
+            } catch {
+                fatalError("Fatal: Unable to initialize SwiftData container: \(error)")
             }
         }
     }

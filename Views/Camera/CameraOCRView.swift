@@ -2,20 +2,22 @@ import SwiftUI
 import PhotosUI
 import SwiftData
 
-/// Camera and Photo OCR Translation View using PhotosUI and Apple Vision.framework.
+/// Complete production Camera & Photo OCR Translation view.
+/// Supports both live camera capture and gallery photo imports.
 public struct CameraOCRView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var appState: AppState
 
-    @State private var selectedItem: PhotosPickerItem? = nil
-    @State private var selectedImage: UIImage? = nil
-    @State private var isExtractingText = false
-    @State private var extractedText = ""
-    @State private var translatedOCRText = ""
-    @State private var isTranslating = false
+    @State private var cameraManager = LiveCameraManager.shared
+    @State private var visionService = VisionOCRService.shared
+    @State private var playbackService = AudioPlaybackService.shared
 
-    private let visionService = VisionOCRService.shared
-    private let playbackService = AudioPlaybackService.shared
+    @State private var isLiveCameraActive = false
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var activeImage: UIImage? = nil
+    @State private var extractedText = ""
+    @State private var translatedText = ""
+    @State private var isTranslating = false
 
     public init(appState: AppState) {
         self.appState = appState
@@ -23,62 +25,60 @@ public struct CameraOCRView: View {
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Header Target Language Quick Bar
-                    HStack {
-                        Text("ترجمة النصوص المستخرجة إلى:")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        HStack(spacing: 6) {
-                            Text(appState.targetLanguage.flag)
-                            Text(appState.targetLanguage.nativeName)
-                                .font(.subheadline)
+            ZStack {
+                Color.vavaScreenBackground.ignoresSafeArea()
+
+                if isLiveCameraActive {
+                    liveCameraViewfinder
+                } else {
+                    galleryAndResultsScrollContent
+                }
+            }
+            .navigationTitle("ترجمة الكاميرا والصور")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        withAnimation {
+                            isLiveCameraActive.toggle()
+                            if isLiveCameraActive {
+                                cameraManager.start()
+                            } else {
+                                cameraManager.stop()
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: isLiveCameraActive ? "photo.fill" : "camera.fill")
+                            Text(isLiveCameraActive ? "المعرض" : "الكاميرا الحية")
+                                .font(.caption)
                                 .fontWeight(.bold)
-                                .foregroundStyle(Color.vavaPrimary)
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Color.vavaPrimary.opacity(0.12))
                         .clipShape(Capsule())
                     }
-                    .padding(.horizontal)
-
-                    // Image Picker / Preview Card
-                    if let selectedImage {
-                        imagePreviewCard(selectedImage)
-                    } else {
-                        photoPickerPlaceholderCard
-                    }
-
-                    // Extracted Text Card (if text was detected)
-                    if !extractedText.isEmpty {
-                        extractedTextCard
-                    }
-
-                    // Translated Result Card
-                    if !translatedOCRText.isEmpty || isTranslating {
-                        translatedOutputCard
-                    }
-
-                    Spacer(minLength: 40)
                 }
-                .padding(.vertical)
             }
-            .background(Color.vavaScreenBackground.ignoresSafeArea())
-            .navigationTitle("ترجمة الصور والنصوص")
-            .navigationBarTitleDisplayMode(.inline)
-            .onChange(of: selectedItem) { _, newItem in
+            .onChange(of: cameraManager.capturedImage) { _, newImage in
+                if let newImage {
+                    self.activeImage = newImage
+                    self.isLiveCameraActive = false
+                    cameraManager.stop()
+                    Task { await processImage(newImage) }
+                }
+            }
+            .onChange(of: selectedPhotoItem) { _, newItem in
                 Task {
                     guard let newItem else { return }
                     if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let uiImage = UIImage(data: data) {
+                       let image = UIImage(data: data) {
                         await MainActor.run {
-                            self.selectedImage = uiImage
-                            self.translatedOCRText = ""
+                            self.activeImage = image
+                            self.translatedText = ""
                         }
-                        await performOCR(on: uiImage)
+                        await processImage(image)
                     }
                 }
             }
@@ -87,60 +87,177 @@ public struct CameraOCRView: View {
 
     // MARK: - Subviews
 
-    private var photoPickerPlaceholderCard: some View {
-        PhotosPicker(selection: $selectedItem, matching: .images) {
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(Color.vavaPrimary.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "camera.viewfinder")
-                        .font(.system(size: 38))
-                        .foregroundStyle(Color.vavaPrimary)
-                }
+    private var liveCameraViewfinder: some View {
+        ZStack {
+            CameraPreviewView(session: cameraManager.session)
+                .ignoresSafeArea()
 
-                VStack(spacing: 6) {
-                    Text("اختر صورة للترجمة الفورية")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.primary)
-
-                    Text("حدد لافتة أو قائمة طعام أو مستنداً من ألبوم الصور، وسيتولى الذكاء الاصطناعي استخراج النص وترجمته فوراً.")
+            // Viewfinder Guide Overlay
+            VStack {
+                // "Hold Steady" Guidance Banner
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.raised.fill")
+                        .foregroundStyle(Color.yellow)
+                    Text("ثبّت الهاتف نحو النص المراد ترجمته")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "photo.badge.plus")
-                    Text("استيراد من المعرض")
                         .fontWeight(.bold)
+                        .foregroundStyle(.white)
                 }
-                .font(.subheadline)
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(LinearGradient.vavaHero)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.65))
                 .clipShape(Capsule())
-                .shadow(color: Color.vavaPrimary.opacity(0.3), radius: 6, x: 0, y: 3)
+                .padding(.top, 16)
+
+                Spacer()
+
+                // Framing rectangle
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(LinearGradient.vavaHero, lineWidth: 2)
+                    .frame(height: 320)
+                    .padding(.horizontal, 24)
+
+                Spacer()
+
+                // Shutter Capture Button
+                HStack {
+                    Spacer()
+                    Button {
+                        cameraManager.capturePhoto()
+                        let impact = UIImpactFeedbackGenerator(style: .heavy)
+                        impact.impactOccurred()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white, lineWidth: 4)
+                                .frame(width: 76, height: 76)
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 64, height: 64)
+                        }
+                    }
+                    .padding(.bottom, 30)
+                    Spacer()
+                }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 36)
-            .background(Color.vavaCardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6]))
-                    .foregroundStyle(Color.vavaBorder)
-            )
-            .padding(.horizontal)
         }
-        .buttonStyle(.plain)
     }
 
-    private func imagePreviewCard(_ image: UIImage) -> some View {
-        VStack(spacing: 12) {
+    private var galleryAndResultsScrollContent: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                // Target Language Banner
+                HStack {
+                    Text("ترجمة النصوص إلى:")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Text(appState.targetLanguage.flag)
+                        Text(appState.targetLanguage.nativeName)
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.vavaPrimary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.vavaPrimary.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+                .padding(.horizontal)
+
+                // Image Display / Import Card
+                if let activeImage {
+                    imageCard(activeImage)
+                } else {
+                    importPlaceholderCard
+                }
+
+                // Extracted OCR text card
+                if !extractedText.isEmpty {
+                    ocrResultCard
+                }
+
+                // Translated Card
+                if !translatedText.isEmpty || isTranslating {
+                    translatedCard
+                }
+
+                Spacer(minLength: 40)
+            }
+            .padding(.vertical)
+        }
+    }
+
+    private var importPlaceholderCard: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.vavaPrimary.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                Image(systemName: "camera.viewfinder")
+                    .font(.system(size: 38))
+                    .foregroundStyle(Color.vavaPrimary)
+            }
+
+            VStack(spacing: 6) {
+                Text("امسح النصوص أو استورد صورة")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                Text("استخدم الكاميرا لمسح اللافتات والقوائم فوراً، أو اختر صورة من المعرض لاستخراج نصوصها.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+
+            HStack(spacing: 14) {
+                // Switch to Live Camera button
+                Button {
+                    withAnimation {
+                        isLiveCameraActive = true
+                        cameraManager.start()
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "camera.fill")
+                        Text("الكاميرا الحية")
+                            .fontWeight(.bold)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.vavaPrimary)
+                    .clipShape(Capsule())
+                }
+
+                // Gallery Picker
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    HStack {
+                        Image(systemName: "photo.on.rectangle")
+                        Text("المعرض")
+                            .fontWeight(.bold)
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(Color.primary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.vavaCardBackground)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.vavaBorder, lineWidth: 1))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .background(Color.vavaCardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .padding(.horizontal)
+    }
+
+    private func imageCard(_ image: UIImage) -> some View {
+        VStack(spacing: 10) {
             ZStack(alignment: .topTrailing) {
                 Image(uiImage: image)
                     .resizable()
@@ -148,10 +265,13 @@ public struct CameraOCRView: View {
                     .frame(maxHeight: 260)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-                // Change Photo Button
-                PhotosPicker(selection: $selectedItem, matching: .images) {
-                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                        .font(.system(size: 14, weight: .bold))
+                Button {
+                    self.activeImage = nil
+                    self.extractedText = ""
+                    self.translatedText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
                         .foregroundStyle(.white)
                         .padding(10)
                         .background(Color.black.opacity(0.6))
@@ -160,32 +280,30 @@ public struct CameraOCRView: View {
                 }
             }
 
-            if isExtractingText {
-                HStack(spacing: 10) {
+            if visionService.isProcessing {
+                HStack(spacing: 8) {
                     ProgressView()
                     Text("جار استخراج النصوص بدقة عبر Apple Vision...")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 6)
+                .padding(.vertical, 4)
             }
         }
         .padding(12)
         .background(Color.vavaCardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.horizontal)
     }
 
-    private var extractedTextCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var ocrResultCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("النص المستخرج (OCR)", systemImage: "doc.text.viewfinder")
+                Label("النص المقروء من الصورة", systemImage: "text.viewfinder")
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundStyle(.secondary)
-
                 Spacer()
-
                 Button {
                     UIPasteboard.general.string = extractedText
                 } label: {
@@ -197,19 +315,16 @@ public struct CameraOCRView: View {
 
             Text(extractedText)
                 .font(.body)
-                .foregroundStyle(.primary)
-                .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Divider()
 
-            // Translate button
             Button {
-                translateExtractedText()
+                translateExtracted()
             } label: {
                 HStack {
                     Image(systemName: "translate")
-                    Text("ترجمة النص المستخرج")
+                    Text("ترجمة المحتوى الآن")
                         .fontWeight(.bold)
                 }
                 .frame(maxWidth: .infinity)
@@ -218,7 +333,6 @@ public struct CameraOCRView: View {
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .buttonStyle(.plain)
         }
         .padding(16)
         .background(Color.vavaCardBackground)
@@ -226,20 +340,17 @@ public struct CameraOCRView: View {
         .padding(.horizontal)
     }
 
-    private var translatedOutputCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var translatedCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                HStack(spacing: 6) {
-                    Text(appState.targetLanguage.flag)
-                    Text("الترجمة (\(appState.targetLanguage.nativeName))")
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.vavaPrimary)
-                }
+                Text("الترجمة (\(appState.targetLanguage.nativeName))")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.vavaPrimary)
                 Spacer()
-                if !translatedOCRText.isEmpty && !isTranslating {
+                if !translatedText.isEmpty && !isTranslating {
                     Button {
-                        playbackService.speak(text: translatedOCRText, languageCode: appState.targetLanguage.code)
+                        playbackService.speak(text: translatedText, languageCode: appState.targetLanguage.code)
                     } label: {
                         Image(systemName: "speaker.wave.2.fill")
                             .font(.caption)
@@ -249,19 +360,18 @@ public struct CameraOCRView: View {
             }
 
             if isTranslating {
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     ProgressView()
-                    Text("جار ترجمة محتوى الصورة...")
+                    Text("جار الترجمة العصبية...")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                .frame(maxWidth: .infinity, minHeight: 60)
             } else {
-                Text(translatedOCRText.formattedForBidi)
+                Text(translatedText.formattedForBidi)
                     .font(.body)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
                     .alignForLanguage(appState.targetLanguage)
-                    .lineSpacing(4)
                     .frame(maxWidth: .infinity, alignment: appState.targetLanguage.isRTL ? .trailing : .leading)
             }
         }
@@ -270,31 +380,27 @@ public struct CameraOCRView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.vavaPrimary.opacity(0.2), lineWidth: 1)
+                .stroke(Color.vavaPrimary.opacity(0.25), lineWidth: 1)
         )
         .padding(.horizontal)
     }
 
     // MARK: - Logic
 
-    private func performOCR(on image: UIImage) async {
-        isExtractingText = true
+    private func processImage(_ image: UIImage) async {
         let text = await visionService.recognizeText(from: image)
         await MainActor.run {
             self.extractedText = text
-            self.isExtractingText = false
         }
     }
 
-    private func translateExtractedText() {
+    private func translateExtracted() {
         guard !extractedText.isEmpty else { return }
         isTranslating = true
-
         appState.requestTranslation(text: extractedText) { translated in
-            self.translatedOCRText = translated
+            self.translatedText = translated
             self.isTranslating = false
 
-            // Save to SwiftData
             let item = TranslationHistoryItem(
                 sourceText: self.extractedText,
                 translatedText: translated,

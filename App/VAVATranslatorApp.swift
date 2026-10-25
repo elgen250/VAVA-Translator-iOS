@@ -7,15 +7,37 @@ struct VAVATranslatorApp: App {
     let container: ModelContainer
 
     init() {
+        let schema = Schema([
+            TranslationHistoryItem.self,
+            PhraseItem.self,
+            LessonProgress.self
+        ])
+
+        // First attempt App Group shared container for extension synchronization
         do {
-            let schema = Schema([TranslationHistoryItem.self])
-            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            let config = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                groupContainer: .identifier("group.com.vava.translator")
+            )
             self.container = try ModelContainer(for: schema, configurations: [config])
         } catch {
+            // Fallback to local default container if App Group is unavailable in testing/sim
             do {
-                self.container = try ModelContainer(for: TranslationHistoryItem.self)
+                let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+                self.container = try ModelContainer(for: schema, configurations: [fallbackConfig])
             } catch {
                 fatalError("Failed to initialize SwiftData ModelContainer: \(error)")
+            }
+        }
+
+        // Seed initial starter phrases and history if empty
+        Task { @MainActor in
+            let context = container.mainContext
+            var fetchDescriptor = FetchDescriptor<PhraseItem>()
+            fetchDescriptor.fetchLimit = 1
+            if let count = try? context.fetchCount(fetchDescriptor), count == 0 {
+                SampleData.populate(context: context)
             }
         }
     }

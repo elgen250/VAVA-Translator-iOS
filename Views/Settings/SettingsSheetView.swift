@@ -76,7 +76,7 @@ public struct SettingsSheetView: View {
                 }
 
                 // Section 4: App Info
-                Section(header: Text("حول النسخة الأولية")) {
+                Section(header: Text("حول التطبيق")) {
                     HStack {
                         Text("اسم التطبيق")
                         Spacer()
@@ -86,7 +86,7 @@ public struct SettingsSheetView: View {
                     HStack {
                         Text("الإصدار")
                         Spacer()
-                        Text("1.0.0 (MVP Prototype)")
+                        Text("1.0.0 (Production Release)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

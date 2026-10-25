@@ -7,6 +7,7 @@ public extension Color {
     
     /// Secondary Accent - Luminous Teal Cyan
     static let vavaAccent = Color(red: 0.08, green: 0.72, blue: 0.82)
+    static let vavaSecondary = Color(red: 0.08, green: 0.72, blue: 0.82)
 
     /// Success / Installed status color
     static let vavaSuccess = Color(red: 0.13, green: 0.77, blue: 0.44)
@@ -16,6 +17,7 @@ public extension Color {
 
     /// Surface Background for parent screens
     static let vavaScreenBackground = Color(uiColor: .systemGroupedBackground)
+    static let vavaBackground = Color(uiColor: .systemGroupedBackground)
 
     /// Subdued text and border tone
     static let vavaBorder = Color(uiColor: .separator).opacity(0.4)

@@ -1,0 +1,168 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : ""
+      }
+    ]
+  },
+  "identifier" : "28919A0A",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6449182390",
+    "_developerTeamID" : "XXXXXXXXXX",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 751500000.0,
+    "_locale" : "ar_SA",
+    "_storefront" : "SAU",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21400120",
+      "localizations" : [
+        {
+          "description" : "الوصول غير المحدود لجميع ميزات الترجمة والذكاء الاصطناعي",
+          "displayName" : "VAVA Pro Subscriptions",
+          "locale" : "ar_SA"
+        },
+        {
+          "description" : "Unlimited access to all neural translation features",
+          "displayName" : "VAVA Pro Subscriptions",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "VAVA Pro Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "149.99",
+          "familyShareable" : true,
+          "groupNumber" : 1,
+          "internalID" : "6449182391",
+          "introductoryOffer" : {
+            "internalID" : "INTRO_YEARLY_TRIAL",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P3D"
+          },
+          "localizations" : [
+            {
+              "description" : "اشتراك سنوي مع فترة تجريبية مجانية 3 أيام - أفضل قيمة",
+              "displayName" : "الاشتراك السنوي (تجربة 3 أيام مجاناً)",
+              "locale" : "ar_SA"
+            },
+            {
+              "description" : "Annual subscription with 3-day free trial",
+              "displayName" : "Annual Pro (3 Days Free)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.vava.translator.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "VAVA Pro Yearly",
+          "subscriptionGroupID" : "21400120",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6449182392",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "اشتراك أسبوعي مرن يتم تجديده تلقائياً",
+              "displayName" : "الاشتراك الأسبوعي",
+              "locale" : "ar_SA"
+            },
+            {
+              "description" : "Flexible weekly subscription, auto-renewed",
+              "displayName" : "Weekly Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.vava.translator.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "VAVA Pro Weekly",
+          "subscriptionGroupID" : "21400120",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

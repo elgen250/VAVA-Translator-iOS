@@ -27,12 +27,56 @@ targets:
       - path: Extensions
       - path: Views
       - path: Preview Content
+      - path: VAVATranslator.storekit
+    dependencies:
+      - target: VAVAKeyboard
+        embed: true
+      - target: VAVAWidget
+        embed: true
     settings:
       base:
         PRODUCT_NAME: "VAVA Translator"
         PRODUCT_BUNDLE_IDENTIFIER: com.vava.translator
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: VAVATranslator.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0.0"
+        ENABLE_BITCODE: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  VAVAKeyboard:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: VAVAKeyboard
+    settings:
+      base:
+        PRODUCT_NAME: "VAVA Keyboard"
+        PRODUCT_BUNDLE_IDENTIFIER: com.vava.translator.keyboard
+        INFOPLIST_FILE: VAVAKeyboard/Info.plist
+        CODE_SIGN_ENTITLEMENTS: VAVAKeyboard/VAVAKeyboard.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: "1.0.0"
+        ENABLE_BITCODE: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+
+  VAVAWidget:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - path: VAVAWidget
+    settings:
+      base:
+        PRODUCT_NAME: "VAVA Widget"
+        PRODUCT_BUNDLE_IDENTIFIER: com.vava.translator.widget
+        INFOPLIST_FILE: VAVAWidget/Info.plist
+        CODE_SIGN_ENTITLEMENTS: VAVAWidget/VAVAWidget.entitlements
         GENERATE_INFOPLIST_FILE: NO
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: "1.0.0"

@@ -8,20 +8,10 @@ struct VAVATranslatorApp: App {
 
     init() {
         do {
-            let schema = Schema([
-                TranslationHistoryItem.self
-            ])
-            
-            // Try configuring container for the shared App Group
-            let groupConfig = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: false,
-                groupContainer: .identifier("group.com.vava.translator")
-            )
-            self.container = try ModelContainer(for: schema, configurations: [groupConfig])
+            let schema = Schema([TranslationHistoryItem.self])
+            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            self.container = try ModelContainer(for: schema, configurations: [config])
         } catch {
-            print("Notice: App Group container unavailable in current preview/simulator runtime. Falling back to local default storage: \(error)")
-            // Fallback to local default container for testing/previews
             do {
                 self.container = try ModelContainer(for: TranslationHistoryItem.self)
             } catch {

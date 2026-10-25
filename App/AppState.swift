@@ -3,6 +3,7 @@ import Translation
 import Observation
 
 /// Global observable application state for VAVA Translator.
+@MainActor
 @Observable
 public final class AppState {
     public static let shared = AppState()
@@ -43,10 +44,8 @@ public final class AppState {
         let sourceLocale = sourceLanguage.localeLanguage
         let targetLocale = targetLanguage.localeLanguage ?? Locale.Language(identifier: "ar")
 
-        // Invalidate previous configuration to force translationTask trigger
-        if let currentConfig = translationConfiguration {
-            currentConfig.invalidate()
-        }
+        // Invalidate previous configuration safely
+        translationConfiguration?.invalidate()
 
         self.translationConfiguration = TranslationSession.Configuration(
             source: sourceLocale,

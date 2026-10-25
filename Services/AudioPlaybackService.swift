@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 import AVFAudio
 import Observation
 

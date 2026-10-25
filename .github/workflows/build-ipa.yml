@@ -19,7 +19,13 @@ jobs:
 
       - name: Select Xcode 16
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          XCODE_DIR=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | sort -V | tail -n 1)
+          if [ -n "$XCODE_DIR" ]; then
+            echo "Selecting Xcode from $XCODE_DIR"
+            sudo xcode-select -s "$XCODE_DIR/Contents/Developer"
+          else
+            echo "Defaulting to active Xcode"
+          fi
           xcodebuild -version
 
       - name: Install XcodeGen
@@ -30,7 +36,17 @@ jobs:
         run: |
           xcodegen generate
 
-      - name: Build & Archive Project
+      - name: Build Project
+        run: |
+          xcodebuild clean build \
+            -project VAVATranslator.xcodeproj \
+            -scheme VAVATranslator \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Archive Project
         run: |
           xcodebuild archive \
             -project VAVATranslator.xcodeproj \
@@ -45,7 +61,6 @@ jobs:
       - name: Package Application into IPA
         run: |
           mkdir -p Payload
-          # Copy the compiled .app bundle into Payload directory
           APP_PATH=$(find build/VAVATranslator.xcarchive/Products/Applications -name "*.app" -type d | head -n 1)
           if [ -z "$APP_PATH" ]; then
             echo "Error: Could not locate compiled .app bundle!"
@@ -54,7 +69,6 @@ jobs:
           echo "Found compiled app at: $APP_PATH"
           cp -R "$APP_PATH" Payload/
           
-          # Compress Payload folder into standard iOS .ipa package
           zip -r -q VAVATranslator-MVP.ipa Payload
           echo "Successfully packaged VAVATranslator-MVP.ipa"
           ls -lh VAVATranslator-MVP.ipa

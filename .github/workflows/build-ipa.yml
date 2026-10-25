@@ -68,24 +68,32 @@ jobs:
 
       - name: Package Application into IPA
         run: |
-          mkdir -p Payload
           APP_PATH=$(find build/VAVATranslator.xcarchive/Products/Applications -name "*.app" -type d | head -n 1)
           if [ -z "$APP_PATH" ]; then
             echo "Error: Could not locate compiled .app bundle!"
             exit 1
           fi
           echo "Found compiled app at: $APP_PATH"
-          cp -R "$APP_PATH" Payload/
 
-          # Check embedded plugins
-          if [ -d "Payload/$(basename "$APP_PATH")/PlugIns" ]; then
-            echo "Found embedded app extensions in PlugIns:"
-            ls -la "Payload/$(basename "$APP_PATH")/PlugIns"
+          # 1. Package Full Release (with embedded Keyboard & Widget PlugIns)
+          mkdir -p package_full/Payload
+          cp -R "$APP_PATH" package_full/Payload/
+          (cd package_full && zip -r -q ../VAVATranslator-Full-Release.ipa Payload)
+          rm -rf package_full
+
+          # 2. Package Sideload-Ready (PlugIns stripped for Sideloadly / AltStore / Free Apple IDs)
+          mkdir -p package_sideload/Payload
+          cp -R "$APP_PATH" package_sideload/Payload/
+          APP_NAME=$(basename "$APP_PATH")
+          if [ -d "package_sideload/Payload/$APP_NAME/PlugIns" ]; then
+            echo "Removing embedded PlugIns for clean Sideloadly compatibility..."
+            rm -rf "package_sideload/Payload/$APP_NAME/PlugIns"
           fi
-          
-          # Package both release and MVP naming conventions
-          zip -r -q VAVATranslator-Full-Release.ipa Payload
-          cp VAVATranslator-Full-Release.ipa VAVATranslator-MVP.ipa
+          (cd package_sideload && zip -r -q ../VAVATranslator-Sideload.ipa Payload)
+          rm -rf package_sideload
+
+          # 3. Create alias VAVATranslator-MVP.ipa pointing to Sideload-Ready package
+          cp VAVATranslator-Sideload.ipa VAVATranslator-MVP.ipa
 
           echo "Successfully packaged VAVATranslator IPAs:"
           ls -lh VAVATranslator-*.ipa
@@ -103,6 +111,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
+            VAVATranslator-Sideload.ipa
             VAVATranslator-Full-Release.ipa
             VAVATranslator-MVP.ipa
           draft: false

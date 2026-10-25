@@ -36,11 +36,17 @@ struct VAVATranslatorApp: App {
             let localConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
             self.container = try ModelContainer(for: schema, configurations: [localConfig])
         } catch {
+            print("Local container creation failed: \(error). Falling back to in-memory container.")
             do {
                 let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
                 self.container = try ModelContainer(for: schema, configurations: [memoryConfig])
             } catch {
-                fatalError("Fatal: Unable to initialize SwiftData container: \(error)")
+                print("In-memory container creation failed: \(error). Using empty fallback container.")
+                let fallbackSchema = Schema([])
+                let fallbackConfig = ModelConfiguration(schema: fallbackSchema, isStoredInMemoryOnly: true)
+                self.container = (try? ModelContainer(for: fallbackSchema, configurations: [fallbackConfig])) ?? {
+                    fatalError("Fatal: SwiftData runtime failure: \(error)")
+                }()
             }
         }
     }

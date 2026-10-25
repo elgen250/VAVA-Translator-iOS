@@ -32,16 +32,13 @@ public final class StoreKitManager {
         }
     }
 
-    deinit {
-        updatesTask?.cancel()
-    }
-
     /// Listens for real-time App Store transaction updates (renewals, revocations, family sharing).
     private func listenForTransactions() {
-        updatesTask = Task.detached { [weak self] in
+        updatesTask = Task { [weak self] in
             for await result in Transaction.updates {
-                if let transaction = try? self?.checkVerified(result) {
-                    await self?.updateProStatus(true)
+                guard let self else { return }
+                if let transaction = try? Self.checkVerified(result) {
+                    self.updateProStatus(true)
                     await transaction.finish()
                 }
             }
@@ -73,8 +70,8 @@ public final class StoreKitManager {
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
-                let transaction = try checkVerified(verification)
-                await updateProStatus(true)
+                let transaction = try Self.checkVerified(verification)
+                self.updateProStatus(true)
                 await transaction.finish()
                 return true
             case .userCancelled:
@@ -104,20 +101,20 @@ public final class StoreKitManager {
     public func refreshCustomerEntitlements() async {
         var hasActiveEntitlement = false
         for await result in Transaction.currentEntitlements {
-            if let transaction = try? checkVerified(result), transaction.revocationDate == nil {
+            if let transaction = try? Self.checkVerified(result), transaction.revocationDate == nil {
                 hasActiveEntitlement = true
                 break
             }
         }
-        await updateProStatus(hasActiveEntitlement)
+        self.updateProStatus(hasActiveEntitlement)
     }
 
-    private func updateProStatus(_ status: Bool) async {
+    private func updateProStatus(_ status: Bool) {
         self.isProUser = status
         sharedDefaults.set(status, forKey: "vava_is_pro_user")
     }
 
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+    nonisolated private static func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
             throw error
